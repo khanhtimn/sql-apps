@@ -1,3 +1,4 @@
+const env = require('dotenv').config();
 const path = require("path");
 const express = require("express");
 const router = express.Router();
@@ -5,33 +6,36 @@ const router = express.Router();
 // client side static assets
 router.get("/", (_, res) => res.sendFile(path.join(__dirname, "./index.html")));
 router.get("/client.js", (_, res) =>
-  res.sendFile(path.join(__dirname, "./client.js"))
+    res.sendFile(path.join(__dirname, "./client.js"))
 );
 router.get("/detail-client.js", (_, res) =>
-  res.sendFile(path.join(__dirname, "./detail-client.js"))
+    res.sendFile(path.join(__dirname, "./detail-client.js"))
 );
 router.get("/style.css", (_, res) =>
-  res.sendFile(path.join(__dirname, "../style.css"))
+    res.sendFile(path.join(__dirname, "../style.css"))
 );
 router.get("/detail", (_, res) =>
-  res.sendFile(path.join(__dirname, "./detail.html"))
+    res.sendFile(path.join(__dirname, "./detail.html"))
 );
 
 /**
  * Student code starts here
  */
 const pg = require("pg");
+if (env.error) {
+    console.error('Failed to load .env file', env.error);
+}
 const pool = new pg.Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "recipeguru",
-  password: "lol",
-  port: 5432,
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
 });
 
 router.get("/search", async function (req, res) {
-  console.log("search recipes");
-  const { rows } = await pool.query(`
+    console.log("search recipes");
+    const { rows } = await pool.query(`
     SELECT DISTINCT ON (r.recipe_id)
       r.recipe_id, r.title, COALESCE(rp.url, 'default.jpg') AS url
     FROM
@@ -41,15 +45,15 @@ router.get("/search", async function (req, res) {
     ON
       r.recipe_id = rp.recipe_id;
   `);
-  res.json({ rows }).end();
+    res.json({ rows }).end();
 });
 
 router.get("/get", async (req, res) => {
-  const recipeId = req.query.id ? +req.query.id : 1;
-  console.log("recipe get", recipeId);
+    const recipeId = req.query.id ? +req.query.id : 1;
+    console.log("recipe get", recipeId);
 
-  const ingredientsPromise = pool.query(
-    `
+    const ingredientsPromise = pool.query(
+        `
     SELECT
       i.title AS ingredient_title,
       i.image AS ingredient_image,
@@ -65,11 +69,11 @@ router.get("/get", async (req, res) => {
     WHERE
       ri.recipe_id = $1;
   `,
-    [recipeId]
-  );
+        [recipeId]
+    );
 
-  const photosPromise = pool.query(
-    `
+    const photosPromise = pool.query(
+        `
     SELECT 
       r.title, r.body, COALESCE(rp.url, 'default.jpg') AS url
     FROM 
@@ -83,20 +87,20 @@ router.get("/get", async (req, res) => {
     WHERE 
       r.recipe_id = $1;
   `,
-    [recipeId]
-  );
+        [recipeId]
+    );
 
-  const [{ rows: photosRows }, { rows: ingredientsRows }] = await Promise.all([
-    photosPromise,
-    ingredientsPromise,
-  ]);
+    const [{ rows: photosRows }, { rows: ingredientsRows }] = await Promise.all([
+        photosPromise,
+        ingredientsPromise,
+    ]);
 
-  res.json({
-    ingredients: ingredientsRows,
-    photos: photosRows.map((photo) => photo.url),
-    title: photosRows[0].title,
-    body: photosRows[0].body,
-  });
+    res.json({
+        ingredients: ingredientsRows,
+        photos: photosRows.map((photo) => photo.url),
+        title: photosRows[0].title,
+        body: photosRows[0].body,
+    });
 });
 /**
  * Student code ends here
